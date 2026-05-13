@@ -63,7 +63,7 @@ def listen_for_messages(token: str, username: str) -> None:
                     raw = line[len("data:"):].strip()
                     try:
                         msg = json.loads(raw)
-                        print(f"\n  [{msg['sender']} → {msg['recipient']}]: {msg['content']}")
+                        print(f"\n  [{msg['sender']} \u2192 {msg['recipient']}]: {msg['content']}")
                         print("  > ", end="", flush=True)
                     except json.JSONDecodeError:
                         pass
@@ -79,13 +79,13 @@ def main() -> None:
     username, token = prompt_auth()
     headers = {"Authorization": f"Bearer {token}"}
 
-    print(f"\nWelcome, {username}!  (type your message and press Enter, or 'quit' to exit)\n")
+    print(f"\nWelcome, {username}!  (format: 'recipient: message', or 'quit' to exit)\n")
 
     # show message history
     res = httpx.get(f"{BASE_URL}/messages", headers=headers)
     if res.status_code == 200:
         for msg in res.json():
-            print(f"  [{msg['sender']} → {msg['recipient']}]: {msg['content']}")
+            print(f"  [{msg['sender']} \u2192 {msg['recipient']}]: {msg['content']}")
 
     # start background SSE listener
     thread = threading.Thread(target=listen_for_messages, args=(token, username), daemon=True)
@@ -93,13 +93,25 @@ def main() -> None:
 
     # main send loop
     while True:
-        recipient = input("\n  To: ").strip()
-        if recipient.lower() == "quit":
+        try:
+            line = input("\n  > ").strip()
+        except (EOFError, KeyboardInterrupt):
             break
 
-        content = input("  > ").strip()
-        if content.lower() == "quit":
+        if not line or line.lower() == "quit":
             break
+
+        if ":" not in line:
+            print("  [usage]: recipient: message")
+            continue
+
+        recipient, content = line.split(":", 1)
+        recipient = recipient.strip()
+        content = content.strip()
+
+        if not content:
+            print("  [usage]: recipient: message")
+            continue
 
         res = httpx.post(
             f"{BASE_URL}/messages",
