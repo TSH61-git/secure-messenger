@@ -169,8 +169,66 @@ class TestEncryption:
 
 
 # ===========================================================================
-# 3. Messaging tests
+# 4. SSE Stream tests
 # ===========================================================================
+
+class TestSSE:
+
+    def test_stream_requires_token(self, client):
+        response = client.get("/stream")
+        assert response.status_code in (401, 403)
+
+    def test_stream_rejects_bad_token(self, client):
+        response = client.get("/stream", headers={"Authorization": "Bearer fake-token"})
+        assert response.status_code == 401
+
+    def test_broadcaster_delivers_to_subscriber(self):
+        """Broadcaster delivers a message to a subscribed queue."""
+        import asyncio
+        from server.broadcaster import Broadcaster
+
+        async def run():
+            b = Broadcaster()
+            queue = b.subscribe("alice")
+            await b.publish({"sender": "bob", "recipient": "alice", "content": "hello"})
+            msg = await asyncio.wait_for(queue.get(), timeout=1)
+            return msg
+
+        msg = asyncio.run(run())
+        assert msg["content"] == "hello"
+        assert msg["sender"] == "bob"
+
+    def test_broadcaster_delivers_to_all_subscribers(self):
+        """Broadcaster delivers to every connected client."""
+        import asyncio
+        from server.broadcaster import Broadcaster
+
+        async def run():
+            b = Broadcaster()
+            q1 = b.subscribe("alice")
+            q2 = b.subscribe("bob")
+            await b.publish({"sender": "charlie", "recipient": "alice", "content": "broadcast!"})
+            m1 = await asyncio.wait_for(q1.get(), timeout=1)
+            m2 = await asyncio.wait_for(q2.get(), timeout=1)
+            return m1, m2
+
+        m1, m2 = asyncio.run(run())
+        assert m1["content"] == "broadcast!"
+        assert m2["content"] == "broadcast!"
+
+    def test_broadcaster_unsubscribe_stops_delivery(self):
+        """After unsubscribe, no more messages are delivered."""
+        import asyncio
+        from server.broadcaster import Broadcaster
+
+        async def run():
+            b = Broadcaster()
+            queue = b.subscribe("alice")
+            b.unsubscribe("alice", queue)
+            await b.publish({"sender": "bob", "recipient": "alice", "content": "hello"})
+            return queue.empty()
+
+        assert asyncio.run(run()) is True
 
 class TestMessaging:
 
