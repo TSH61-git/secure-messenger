@@ -19,13 +19,18 @@ HOW TO RUN:
   Then open: http://localhost:8000/docs
 """
 
+import json
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+from sse_starlette.sse import EventSourceResponse
 
-from .models import create_tables
+from .models import create_tables, get_db
 from .routes import router
+from .auth import require_auth
+from .broadcaster import broadcaster
 
 
 logging.basicConfig(
@@ -42,10 +47,29 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Secure Messenger — Stage 1",
-    description="Authenticated, encrypted REST API for private messaging",
-    version="1.0.0",
+    title="Secure Messenger — Stage 2",
+    description="Authenticated, encrypted REST API with real-time SSE messaging",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
 app.include_router(router)
+
+
+@app.get("/stream")
+async def stream(
+    db: Session = Depends(get_db),
+    username: str = Depends(require_auth),
+) -> EventSourceResponse:
+    """SSE stream — client holds open connection, receives messages in real time."""
+    queue = broadcaster.subscribe(username)
+
+    async def event_generator():
+        try:
+            while True:
+                message = await queue.get()
+                yield {"data": json.dumps(message)}
+        finally:
+            broadcaster.unsubscribe(username, queue)
+
+    return EventSourceResponse(event_generator())

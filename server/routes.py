@@ -72,6 +72,7 @@ from .schemas import (
 )
 from .auth import hash_password, verify_password, create_token, require_auth
 from .crypto import encrypt, decrypt
+from .broadcaster import broadcaster
 
 
 log = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 # TODO 3 — Send a message (authenticated)
 # ---------------------------------------------------------------------------
 @router.post("/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def send_message(
+async def send_message(
     body: SendMessageRequest,
     db: Session = Depends(get_db),
     username: str = Depends(require_auth),
@@ -128,13 +129,15 @@ def send_message(
     db.commit()
     db.refresh(msg)
 
-    return MessageResponse(
+    response = MessageResponse(
         id=msg.id,
         sender=msg.sender,
         recipient=msg.recipient,
         content=body.content,
         created_at=msg.created_at,
     )
+    await broadcaster.publish(response.model_dump(mode="json"))
+    return response
 
 
 # ---------------------------------------------------------------------------
