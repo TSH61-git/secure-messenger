@@ -62,7 +62,7 @@ async def stream(
     username: str = Depends(require_auth),
 ) -> EventSourceResponse:
     """SSE stream — client holds open connection, receives messages in real time."""
-    queue = broadcaster.subscribe(username)
+    queue = await broadcaster.subscribe(username)
 
     async def event_generator():
         try:
@@ -70,6 +70,6 @@ async def stream(
                 message = await queue.get()
                 yield {"data": json.dumps(message)}
         finally:
-            broadcaster.unsubscribe(username, queue)
+            await broadcaster.unsubscribe(username, queue)
 
     return EventSourceResponse(event_generator())

@@ -136,7 +136,7 @@ async def send_message(
         content=body.content,
         created_at=msg.created_at,
     )
-    await broadcaster.publish(response.model_dump(mode="json"))
+    await broadcaster.publish(response.model_dump(mode="json"), recipient=msg.recipient)    
     return response
 
 

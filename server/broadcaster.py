@@ -13,7 +13,7 @@ HOW IT WORKS:
 """
 
 import asyncio
-from typing import Any
+from typing import Any, Optional
 
 
 class Broadcaster:
@@ -23,13 +23,13 @@ class Broadcaster:
         # A user can be connected from multiple terminals simultaneously.
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
 
-    def subscribe(self, username: str) -> asyncio.Queue:
+    async def subscribe(self, username: str) -> asyncio.Queue:
         """Register a new SSE client. Returns their personal message queue."""
         queue: asyncio.Queue = asyncio.Queue()
         self._subscribers.setdefault(username, []).append(queue)
         return queue
 
-    def unsubscribe(self, username: str, queue: asyncio.Queue) -> None:
+    async def unsubscribe(self, username: str, queue: asyncio.Queue) -> None:
         """Remove a client's queue when they disconnect."""
         queues = self._subscribers.get(username, [])
         if queue in queues:
@@ -37,11 +37,19 @@ class Broadcaster:
         if not queues:
             self._subscribers.pop(username, None)
 
-    async def publish(self, message: dict[str, Any]) -> None:
+    async def publish(self, message: dict[str, Any], recipient: Optional[str] = None) -> None:
         """Push a message into every connected client's queue."""
-        for queues in self._subscribers.values():
-            for queue in queues:
-                await queue.put(message)
+        sender = message.get("sender")
+        if recipient:
+            target_users = {sender, recipient}
+            for user in target_users:
+                if user in self._subscribers:
+                    for queue in self._subscribers[user]:
+                        await queue.put(message)
+        else:
+            for queues in self._subscribers.values():
+                for queue in queues:
+                    await queue.put(message)
 
 
 broadcaster = Broadcaster()

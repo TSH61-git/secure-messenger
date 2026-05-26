@@ -2,3 +2,4 @@
 /messenger.db
 /test_messenger.db
 /venv
+.env

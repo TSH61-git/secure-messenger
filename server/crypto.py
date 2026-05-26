@@ -31,13 +31,17 @@ WHY A FRESH NONCE EVERY TIME?
 
 import os
 import base64
+from dotenv import load_dotenv
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 # 32 bytes = 256-bit key. os.urandom is cryptographically secure.
 # In production: load this from an environment variable, never hardcode it.
-_KEY: bytes = os.urandom(32)
-
+load_dotenv()
+_KEY_s: bytes = os.getenv("SECRET_KEY")
+if not _KEY_s:
+    raise RuntimeError("Missing SECRET_KEY in .env file!")
+_KEY: bytes = _KEY_s.encode()
 
 def encrypt(plaintext: str) -> str:
     """

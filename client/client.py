@@ -63,6 +63,8 @@ def listen_for_messages(token: str, username: str) -> None:
                     raw = line[len("data:"):].strip()
                     try:
                         msg = json.loads(raw)
+                        if msg['sender'] == username:
+                            continue
                         print(f"\n  [{msg['sender']} \u2192 {msg['recipient']}]: {msg['content']}")
                         print("  > ", end="", flush=True)
                     except json.JSONDecodeError:
