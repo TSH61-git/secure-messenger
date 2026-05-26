@@ -68,6 +68,58 @@ A secure, privacy-first messaging backend built with FastAPI, AES-256-GCM encryp
    - authenticated Server-Sent Events connection
    - connected clients receive published messages instantly
 
+### Client Architecture & Features
+
+- **Secure authentication state**
+  - clients store JWTs in memory or session state only
+  - no credentials are permanently persisted in plain text
+  - authenticated UI state is gated by `token` existence before chat access
+
+- **EventSource / SSE management**
+  - the client maintains a persistent SSE connection to `/stream`
+  - incoming messages are parsed from `data:` events and merged into the local chat feed
+  - reconnect logic is implicit in the client stream handlers, preventing silent message loss
+
+- **Client UI components**
+  - registration and login forms with validation and error feedback
+  - authenticated message view with sender/recipient context
+  - dynamic message feed that updates on history load and incoming SSE events
+  - route guards that block chat access until a valid JWT is acquired
+  - optimistic UI behavior in the web client: sent messages are rendered immediately while network delivery completes
+
+### Full-Stack Data Flow
+
+```text
+Client UI                 FastAPI Server                  Database
+------------              ----------------              ------------
+[Login / Register]  --->   POST /register /login  --->     users table
+  |                          |                           (stores bcrypt hashes)
+  |                          |-- validate credentials
+  |                          |-- issue JWT
+  v
+[Authenticated state]
+  |-- store JWT in memory or session state
+  v
+[Send message form]  --->   POST /messages  --->  encrypt(content)
+  |                          |-- verify JWT via auth dependency
+  |                          |-- save ciphertext to messages table
+  v
+[Request history]    --->   GET /messages   --->  filter sender/recipient
+                             |-- decrypt ciphertext                 
+                             |-- return plain content               
+  ^
+  |<--------------------------------------------------------------
+
+[Server SSE publisher]  --->   on new message  ---+-- broadcast JSON event
+                                                 |
+[EventSource / stream]   <------------------------+
+  | receive `data:` event
+  v
+[Update client message feed]
+```
+
+The full lifecycle ensures that only authenticated clients send requests, message payloads are encrypted at rest, and real-time delivery is carried out over SSE without exposing ciphertext.
+
 ### Core components
 
 - `server/auth.py`
@@ -86,6 +138,12 @@ A secure, privacy-first messaging backend built with FastAPI, AES-256-GCM encryp
   - message filtering and publish logic
 - `server/broadcaster.py`
   - async SSE fan-out with per-user queues
+- `client/client.py`
+  - CLI-based authentication and message loop
+  - background SSE listener thread for live updates
+- `client/client_web.py`
+  - Streamlit-powered web chat interface
+  - session-state JWT management and live update polling
 
 ---
 
@@ -143,6 +201,40 @@ Open:
 
 - `http://localhost:8000/docs`
 - `http://localhost:8000/stream`
+
+### Client Setup & Run Instructions
+
+The repository includes two client integration options: a terminal-based CLI client and a Streamlit web client.
+
+#### CLI client
+
+Install additional runtime dependencies if not already available:
+
+```bash
+pip install httpx
+```
+
+Run the CLI client:
+
+```bash
+python -m client.client
+```
+
+#### Web client (Streamlit)
+
+Install Streamlit and the HTTP client library:
+
+```bash
+pip install streamlit httpx
+```
+
+Run the web client:
+
+```bash
+streamlit run client/client_web.py
+```
+
+By default, both clients target `http://localhost:8000`. If the API runs on a different host or port, update `BASE_URL` in `client/client.py` and `client/client_web.py`.
 
 ### Run tests
 
