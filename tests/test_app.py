@@ -171,7 +171,6 @@ class TestEncryption:
 # ===========================================================================
 # 4. SSE Stream tests
 # ===========================================================================
-
 class TestSSE:
 
     def test_stream_requires_token(self, client):
@@ -183,15 +182,14 @@ class TestSSE:
         assert response.status_code == 401
 
     def test_broadcaster_delivers_to_subscriber(self):
-        """Broadcaster delivers a message to a subscribed queue."""
         import asyncio
         from server.broadcaster import Broadcaster
 
         async def run():
             b = Broadcaster()
-            queue = b.subscribe("alice")
+            queue = await b.subscribe("alice")
             await b.publish({"sender": "bob", "recipient": "alice", "content": "hello"})
-            msg = await asyncio.wait_for(queue.get(), timeout=1)
+            msg = await asyncio.wait_for(queue.get(), timeout=0.2)
             return msg
 
         msg = asyncio.run(run())
@@ -199,17 +197,16 @@ class TestSSE:
         assert msg["sender"] == "bob"
 
     def test_broadcaster_delivers_to_all_subscribers(self):
-        """Broadcaster delivers to every connected client."""
         import asyncio
         from server.broadcaster import Broadcaster
 
         async def run():
             b = Broadcaster()
-            q1 = b.subscribe("alice")
-            q2 = b.subscribe("bob")
+            q1 = await b.subscribe("alice")
+            q2 = await b.subscribe("bob")
             await b.publish({"sender": "charlie", "recipient": "alice", "content": "broadcast!"})
-            m1 = await asyncio.wait_for(q1.get(), timeout=1)
-            m2 = await asyncio.wait_for(q2.get(), timeout=1)
+            m1 = await asyncio.wait_for(q1.get(), timeout=0.2)
+            m2 = await asyncio.wait_for(q2.get(), timeout=0.2)
             return m1, m2
 
         m1, m2 = asyncio.run(run())
@@ -217,19 +214,21 @@ class TestSSE:
         assert m2["content"] == "broadcast!"
 
     def test_broadcaster_unsubscribe_stops_delivery(self):
-        """After unsubscribe, no more messages are delivered."""
         import asyncio
         from server.broadcaster import Broadcaster
 
         async def run():
             b = Broadcaster()
-            queue = b.subscribe("alice")
-            b.unsubscribe("alice", queue)
+            queue = await b.subscribe("alice")
+            await b.unsubscribe("alice", queue)
             await b.publish({"sender": "bob", "recipient": "alice", "content": "hello"})
             return queue.empty()
 
         assert asyncio.run(run()) is True
 
+# ===========================================================================
+# 4. Messaging tests
+# ===========================================================================
 class TestMessaging:
 
     def test_send_message_success(self, client):
@@ -243,7 +242,7 @@ class TestMessaging:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["content"] == "hello bob"   # returned decrypted
+        assert data["content"] == "hello bob"
         assert data["sender"] == "alice"
         assert data["recipient"] == "bob"
 
@@ -257,12 +256,8 @@ class TestMessaging:
         assert response.status_code == 200
         messages = response.json()
         assert len(messages) >= 1
-        assert messages[0]["content"] == "hi bob"   # must be decrypted, not ciphertext
+        assert messages[0]["content"] == "hi bob"
 
-    # TODO — complete this test:
-    # Alice sends a message to Bob. Bob sends a message to Alice.
-    # Verify that GET /messages returns ONLY the messages
-    # where the requesting user is sender OR recipient.
     def test_user_sees_only_their_messages(self, client):
         alice_token   = register_and_login(client, "alice",   "secret123")
         bob_token     = register_and_login(client, "bob",     "secret456")

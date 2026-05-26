@@ -165,3 +165,10 @@ def get_messages(
         )
         for msg in messages
     ]
+
+# -----------------------------------
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    """מחזיר רשימה של כל שמות המשתמשים הרשומים במערכת."""
+    users = db.query(User).all()
+    return [user.username for user in users]
