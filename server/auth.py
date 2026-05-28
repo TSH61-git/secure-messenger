@@ -77,8 +77,16 @@ from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+import os
+from dotenv import load_dotenv
 
-SECRET_KEY = "change-this-to-a-long-random-string-in-production"
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("Missing SECRET_KEY in .env file!")
+
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 24
 
