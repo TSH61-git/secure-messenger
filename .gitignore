@@ -1,5 +1,27 @@
-/.pytest_cache
-/messenger.db
-/test_messenger.db
-/venv
-.env
+# === Python (Backend) ===
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.db
+*.sqlite3
+
+# === Angular (Frontend) ===
+# חסימת תיקיית אלפי הקבצים של ה-Node
+**/node_modules/
+dist/
+.angular/
+.nx/
+
+# === IDEs & System files ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Environment & Secrets ===
+*.env
+*.token
