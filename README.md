@@ -1,6 +1,16 @@
 # Secure Messenger with Real-Time Smart Emotion AI
 
+---
+
 An end-to-end encrypted messaging platform integrated with real-time face expression AI to dynamically enrich user interaction. Messages are encrypted at rest using AES-256-GCM, identities are authenticated via signed JWT tokens, and every session is enriched by a live emotion detection engine that suggests contextual emoji responses as you type.
+
+---
+
+## 📸 System Demo
+
+Here is the system in action, demonstrating the real-time background emotion detection engine mapping a user's facial expression to contextual emoji completions:
+
+![Secure Messenger Smart Emotion Demo](client/angular-client/src/public/images/demo.png)
 
 ---
 
