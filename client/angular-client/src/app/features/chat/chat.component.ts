@@ -23,6 +23,49 @@ import { FaceEmotionService } from '../../core/services/face-emotion.service';
   template: `
     <div class="flex h-screen bg-surface-900 overflow-hidden">
 
+      <!-- ── Consent Dialog Overlay ──────────────────────────────────── -->
+      @if (!hasCameraConsent()) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div class="bg-surface-800 border border-surface-600 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-10 h-10 rounded-xl bg-accent/20 border border-accent/30
+                          flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" stroke-width="2"
+                     viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.361a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-white font-bold text-base">Smart Emotion AI</h2>
+                <p class="text-xs text-gray-500">Optional camera feature</p>
+              </div>
+            </div>
+            <p class="text-sm text-gray-300 leading-relaxed mb-6">
+              This platform utilizes client-side face expression AI to dynamically suggest
+              matching emoji completions in real-time.
+              <span class="text-accent font-medium">No video data or images are ever stored or sent to a server.</span>
+            </p>
+            <div class="flex gap-3">
+              <button
+                type="button"
+                (click)="grantConsent()"
+                class="flex-1 bg-accent hover:bg-accent-hover text-white text-sm font-semibold
+                       px-4 py-2.5 rounded-xl transition-colors duration-150">
+                ✨ Enable Smart AI Autocomplete
+              </button>
+              <button
+                type="button"
+                (click)="dismissConsent()"
+                class="px-4 py-2.5 rounded-xl text-sm text-gray-400
+                       hover:text-white hover:bg-surface-700 transition-colors duration-150">
+                Skip
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- ── Sidebar ──────────────────────────────────────────────────── -->
       <aside class="w-64 flex-shrink-0 bg-surface-800 border-r border-surface-600
                     flex flex-col">
@@ -41,15 +84,39 @@ import { FaceEmotionService } from '../../core/services/face-emotion.service';
           </div>
         </div>
 
-        <!-- Current user -->
-        <div class="px-5 py-3 border-b border-surface-600">
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Signed in as</p>
-          <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40
-                        flex items-center justify-center text-accent font-bold text-xs">
-              {{ (auth.currentUser() ?? '?')[0].toUpperCase() }}
+        <!-- Current user + AI Toggle -->
+        <div class="px-5 py-3 border-b border-surface-600 space-y-3">
+          <div>
+            <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Signed in as</p>
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-accent/20 border border-accent/40
+                          flex items-center justify-center text-accent font-bold text-xs">
+                {{ (auth.currentUser() ?? '?')[0].toUpperCase() }}
+              </div>
+              <span class="text-sm font-medium text-white truncate">{{ auth.currentUser() }}</span>
             </div>
-            <span class="text-sm font-medium text-white truncate">{{ auth.currentUser() }}</span>
+          </div>
+          <!-- Smart Emoji AI Toggle -->
+          <div class="flex items-center justify-between py-1">
+            <div>
+              <p class="text-xs font-medium text-gray-300">Smart Emoji AI</p>
+              <p class="text-xs text-gray-600">{{ isCameraFeatureEnabled() ? 'On' : 'Off' }}</p>
+            </div>
+            <button
+              type="button"
+              (click)="toggleCamera()"
+              [disabled]="!hasCameraConsent()"
+              [title]="!hasCameraConsent() ? 'Enable AI from the consent prompt first' : ''"
+              class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent
+                     cursor-pointer transition-colors duration-200 focus:outline-none
+                     disabled:opacity-40 disabled:cursor-not-allowed"
+              [class]="isCameraFeatureEnabled() ? 'bg-accent' : 'bg-surface-600'">
+              <span
+                class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow
+                       transform transition-transform duration-200"
+                [class]="isCameraFeatureEnabled() ? 'translate-x-5' : 'translate-x-0'">
+              </span>
+            </button>
           </div>
         </div>
 
@@ -162,14 +229,14 @@ import { FaceEmotionService } from '../../core/services/face-emotion.service';
           }
         </div>
 
-        <!-- Hidden webcam feed — used by FaceEmotionService for frame sampling -->
+        <!-- Hidden webcam feed — always in DOM so ViewChild ref is never null -->
         <video #webcam muted playsinline
                style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px"></video>
 
         <!-- Input bar -->
         <footer class="px-6 py-4 border-t border-surface-600 bg-surface-800 flex-shrink-0">
           <!-- Ghost emoji hint -->
-          @if (suggestedEmoji()) {
+          @if (suggestedEmoji() && isCameraFeatureEnabled()) {
             <div class="flex items-center gap-1.5 mb-2 px-1">
               <span class="text-lg opacity-40">{{ suggestedEmoji() }}</span>
               <span class="text-xs text-gray-600">Press <kbd class="px-1 py-0.5 rounded bg-surface-600 text-gray-400 font-mono text-xs">Tab</kbd> to insert</span>
@@ -221,6 +288,8 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
   @ViewChild('webcam') private webcamRef!: ElementRef<HTMLVideoElement>;
 
   readonly selectedUser = signal<string | null>(null);
+  readonly hasCameraConsent = signal(false);
+  readonly isCameraFeatureEnabled = signal(false);
   messageText = '';
 
   private shouldScroll = false;
@@ -232,7 +301,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
   readonly visibleMessages = computed(() => {
     const peer = this.selectedUser();
     const me = this.auth.currentUser();
-    if (!peer || !me) return [];
+    if (!peer || !me) return [];;
     return this.chat
       .messages()
       .filter(
@@ -248,15 +317,11 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
     this.chat.connectStream();
   }
 
-  ngAfterViewInit() {
-    this.faceEmotion
-      .startDetection(this.webcamRef.nativeElement)
-      .catch(err => console.error('FaceEmotionService:', err));
-  }
+  ngAfterViewInit() {}
 
   ngOnDestroy() {
     this.chat.disconnectStream();
-    this.faceEmotion.stopDetection();
+    this.faceEmotion.stopCamera();
   }
 
   ngAfterViewChecked() {
@@ -266,13 +331,34 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
     }
   }
 
+  grantConsent() {
+    this.hasCameraConsent.set(true);
+    this.isCameraFeatureEnabled.set(true);
+    this._startCamera();
+  }
+
+  dismissConsent() {
+    // Mark consent dialog as seen (dismissed); camera stays off.
+    this.hasCameraConsent.set(true);
+    this.isCameraFeatureEnabled.set(false);
+  }
+
+  toggleCamera() {
+    if (this.isCameraFeatureEnabled()) {
+      this.isCameraFeatureEnabled.set(false);
+      this.faceEmotion.stopCamera();
+    } else {
+      this.isCameraFeatureEnabled.set(true);
+      this._startCamera();
+    }
+  }
+
   selectUser(user: string) {
     this.selectedUser.set(user);
     this.shouldScroll = true;
   }
 
- onTab(event: any) {
-  const keyboardEvent = event as KeyboardEvent;
+  onTab(event: any) {
     const emoji = this.suggestedEmoji();
     if (!emoji) return;
     event.preventDefault();
@@ -288,6 +374,12 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
     this.messageText = '';
     this.shouldScroll = true;
     this.chat.send(text, recipient);
+  }
+
+  private _startCamera() {
+    this.faceEmotion
+      .startCamera(this.webcamRef.nativeElement)
+      .catch(err => console.error('FaceEmotionService:', err));
   }
 
   private _scrollToBottom() {

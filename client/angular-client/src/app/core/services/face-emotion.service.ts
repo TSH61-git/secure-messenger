@@ -12,7 +12,7 @@ export class FaceEmotionService implements OnDestroy {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private modelsLoaded = false;
 
-  async startDetection(video: HTMLVideoElement): Promise<void> {
+  async startCamera(video: HTMLVideoElement): Promise<void> {
     await this.loadModels();
     this.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
     video.srcObject = this.stream;
@@ -20,7 +20,7 @@ export class FaceEmotionService implements OnDestroy {
     this.intervalId = setInterval(() => this.detect(video), DETECTION_INTERVAL_MS);
   }
 
-  stopDetection(): void {
+  stopCamera(): void {
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -74,6 +74,6 @@ export class FaceEmotionService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.stopDetection();
+    this.stopCamera();
   }
 }
