@@ -1,12 +1,13 @@
-import { Injectable, OnDestroy } from '@angular/core';
+import { Injectable, OnDestroy, signal } from '@angular/core';
 import * as faceapi from '@vladmandic/face-api';
 
 const MODELS_PATH = '/models';
-const DETECTION_INTERVAL_MS = 400;
-const CONFIDENCE_THRESHOLD = 0.75;
+const DETECTION_INTERVAL_MS = 1000;
 
 @Injectable({ providedIn: 'root' })
 export class FaceEmotionService implements OnDestroy {
+  readonly suggestedEmoji = signal<string>('');
+
   private stream: MediaStream | null = null;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private modelsLoaded = false;
@@ -46,19 +47,29 @@ export class FaceEmotionService implements OnDestroy {
       .withFaceLandmarks()
       .withFaceExpressions();
 
-    if (!result) return;
+    if (!result) {
+      this.suggestedEmoji.set('');
+      return;
+    }
 
     const expressions = result.expressions as unknown as Record<string, number>;
     let emotion = '', confidence = 0;
     for (const key in expressions) {
-      if (expressions[key] > confidence) {
-        confidence = expressions[key];
-        emotion = key;
-      }
+      if (expressions[key] > confidence) { confidence = expressions[key]; emotion = key; }
     }
 
-    if (confidence > CONFIDENCE_THRESHOLD) {
-      console.log('Detected Emotion:', emotion, confidence);
+    console.log('Detected Emotion:', emotion, confidence);
+    this.suggestedEmoji.set(this.toEmoji(emotion, confidence));
+  }
+
+  private toEmoji(emotion: string, score: number): string {
+    const hi = score > 0.75;
+    switch (emotion) {
+      case 'happy':     return hi ? '😁' : '😊';
+      case 'surprised': return hi ? '😲' : '😮';
+      case 'sad':       return hi ? '😢' : '😔';
+      case 'angry':     return hi ? '😡' : '😠';
+      default:          return '';
     }
   }
 

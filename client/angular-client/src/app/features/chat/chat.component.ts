@@ -168,11 +168,19 @@ import { FaceEmotionService } from '../../core/services/face-emotion.service';
 
         <!-- Input bar -->
         <footer class="px-6 py-4 border-t border-surface-600 bg-surface-800 flex-shrink-0">
+          <!-- Ghost emoji hint -->
+          @if (suggestedEmoji()) {
+            <div class="flex items-center gap-1.5 mb-2 px-1">
+              <span class="text-lg opacity-40">{{ suggestedEmoji() }}</span>
+              <span class="text-xs text-gray-600">Press <kbd class="px-1 py-0.5 rounded bg-surface-600 text-gray-400 font-mono text-xs">Tab</kbd> to insert</span>
+            </div>
+          }
           <form (ngSubmit)="sendMessage()" class="flex items-center gap-3">
             <input
               [(ngModel)]="messageText"
               name="messageText"
               type="text"
+              (keydown.tab)="onTab($event)"
               [placeholder]="selectedUser()
                 ? 'Message ' + selectedUser() + '…'
                 : 'Select a recipient first'"
@@ -207,6 +215,7 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
   readonly auth = inject(AuthService);
   readonly chat = inject(ChatService);
   private readonly faceEmotion = inject(FaceEmotionService);
+  readonly suggestedEmoji = this.faceEmotion.suggestedEmoji;
 
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('webcam') private webcamRef!: ElementRef<HTMLVideoElement>;
@@ -260,6 +269,15 @@ export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterVie
   selectUser(user: string) {
     this.selectedUser.set(user);
     this.shouldScroll = true;
+  }
+
+ onTab(event: any) {
+  const keyboardEvent = event as KeyboardEvent;
+    const emoji = this.suggestedEmoji();
+    if (!emoji) return;
+    event.preventDefault();
+    this.messageText = this.messageText ? `${this.messageText} ${emoji}` : emoji;
+    this.faceEmotion.suggestedEmoji.set('');
   }
 
   sendMessage() {
