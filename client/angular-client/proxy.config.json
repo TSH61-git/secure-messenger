@@ -1,8 +1,15 @@
 {
   "/api": {
     "target": "http://localhost:8000",
-    "pathRewrite": { "^/api": "" },
     "secure": false,
-    "changeOrigin": true
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/stream": {
+    "target": "http://localhost:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true,
+    "logLevel": "debug"
   }
 }

@@ -1,5 +1,6 @@
 import {
   AfterViewChecked,
+  AfterViewInit,
   Component,
   ElementRef,
   inject,
@@ -13,6 +14,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { ChatService, Message } from '../../core/services/chat.service';
+import { FaceEmotionService } from '../../core/services/face-emotion.service';
 
 @Component({
   selector: 'app-chat',
@@ -160,6 +162,10 @@ import { ChatService, Message } from '../../core/services/chat.service';
           }
         </div>
 
+        <!-- Hidden webcam feed — used by FaceEmotionService for frame sampling -->
+        <video #webcam muted playsinline
+               style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px"></video>
+
         <!-- Input bar -->
         <footer class="px-6 py-4 border-t border-surface-600 bg-surface-800 flex-shrink-0">
           <form (ngSubmit)="sendMessage()" class="flex items-center gap-3">
@@ -197,11 +203,13 @@ import { ChatService, Message } from '../../core/services/chat.service';
     </div>
   `,
 })
-export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatComponent implements OnInit, AfterViewInit, OnDestroy, AfterViewChecked {
   readonly auth = inject(AuthService);
   readonly chat = inject(ChatService);
+  private readonly faceEmotion = inject(FaceEmotionService);
 
   @ViewChild('messagesContainer') private messagesContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild('webcam') private webcamRef!: ElementRef<HTMLVideoElement>;
 
   readonly selectedUser = signal<string | null>(null);
   messageText = '';
@@ -231,8 +239,15 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chat.connectStream();
   }
 
+  ngAfterViewInit() {
+    this.faceEmotion
+      .startDetection(this.webcamRef.nativeElement)
+      .catch(err => console.error('FaceEmotionService:', err));
+  }
+
   ngOnDestroy() {
     this.chat.disconnectStream();
+    this.faceEmotion.stopDetection();
   }
 
   ngAfterViewChecked() {

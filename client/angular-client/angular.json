@@ -23,7 +23,14 @@
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.json",
-            "assets": ["src/favicon.ico"],
+            "assets": [
+              "src/favicon.ico",
+              {
+                "glob": "**/*",
+                "input": "src/public",
+                "output": "/"
+              }
+            ],
             "styles": ["src/styles.css"],
             "scripts": []
           },

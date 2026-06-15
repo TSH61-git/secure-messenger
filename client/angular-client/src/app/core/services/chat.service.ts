@@ -83,7 +83,7 @@ export class ChatService implements OnDestroy {
     // Per the README the /stream endpoint uses the standard Authorization header;
     // we therefore open the connection through the dev-proxy which rewrites the path
     // and attach the token as a query param supported by sse-starlette.
-    const url = `${this.base}/stream?token=${encodeURIComponent(token)}`;
+    const url = `/stream?token=${encodeURIComponent(token)}`;
     this.es = new EventSource(url);
 
     this.es.onmessage = (event) => {
